@@ -1,10 +1,11 @@
-from httpx import Client
-from prefect import flow, task
-import duckdb
-from pandas import DataFrame
 import json
 
-from schemas import Team, Game
+import duckdb
+from httpx import Client
+from pandas import DataFrame
+from prefect import flow, task
+
+from schemas import Game, Team
 
 DATA_DIR = "data"
 DB_URI = "db/mls.db"
@@ -24,15 +25,19 @@ def get_client():
     return Client(base_url=MLS_API_URL, timeout=10.0)
 
 
-def get_team_data(client: Client) -> list[dict]:
-    response = client.get("v1/mls/teams")
+def get_team_data(client: Client, params: dict | None = None) -> list[dict]:
+    if params is None:
+        params = {}
+    response = client.get("v1/mls/teams", params=params)
     response.raise_for_status()
     teams_data = response.json()
     return [Team(**team).model_dump() for team in teams_data]
 
 
-def get_game_data(client: Client) -> list[dict]:
-    response = client.get("v1/mls/games")
+def get_game_data(client: Client, params: dict | None = None) -> list[dict]:
+    if params is None:
+        params = {}
+    response = client.get("v1/mls/games", params=params)
     response.raise_for_status()
     games_data = response.json()
     return [Game(**game).model_dump() for game in games_data]
@@ -42,11 +47,19 @@ def get_game_data(client: Client) -> list[dict]:
 def extract():
     client = get_client()
     teams = get_team_data(client)
-    games = get_game_data(client)
-    with open(f"{DATA_DIR}/raw_teams.json", "w") as f:
-        json.dump(obj=teams, fp=f, indent=2)
-    with open(f"{DATA_DIR}/raw_games.json", "w") as f:
-        json.dump(obj=games, fp=f, indent=2)
+
+    games = []
+
+    for year in range(2010, 2026):
+        games.extend(
+            get_game_data(
+                client,
+                params={
+                    "season": str(year),
+                    "stage_name": "Regular Season",
+                },
+            )
+        )
     return {"teams": teams, "games": games}
 
 
@@ -105,29 +118,30 @@ def transform(data):
             "away_team_name",
             "away_team_score",
             "away_team_points",
+            "knockout_game",
         ]
     ]
-
-    with open(f"{DATA_DIR}/transformed_games.json", "w") as f:
-        json.dump(obj=merged_df.to_dict(orient="records"), fp=f, indent=2)
-
-    return merged_df.to_json(orient="records", indent=2)
+    return merged_df
 
 
 @task
-def load(data):
+def load(df: DataFrame) -> bool:
     db = get_db()
-    db.execute("CREATE TABLE IF NOT EXISTS games AS SELECT * FROM read_json_auto(?)", (data,))
+    db.sql("DROP TABLE IF EXISTS stg_games")
+    db.sql("CREATE TABLE stg_games AS SELECT * FROM df")
     db.commit()
     print("Data loaded into the database.")
+    db.close()
+    return True
 
 
-@flow(name="ETL Flow")
+@flow(name="ETL Raw Data Flow")
 def etl_flow():
     data = extract()
-    transformed_data = transform(data)
-    load(transformed_data)
+    transformed_df = transform(data)
+    load(transformed_df)
 
 
 if __name__ == "__main__":
     etl_flow()
+    print("ETL process completed successfully.")

@@ -17,3 +17,7 @@ class Game(BaseModel):
     season_name: str = Field("season_name", description="Name of the season during which the game was played")
     matchday: int = Field("matchday", description="Matchday number in the season")
     status: str = Field("status", description="Current status of the game (e.g., FullTime)")
+    knockout_game: bool = Field(
+        "knockout_game",
+        description="Indicates if the game is part of a knockout stage (e.g., playoffs)",
+    )
