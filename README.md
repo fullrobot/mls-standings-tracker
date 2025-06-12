@@ -2,6 +2,8 @@
 
 A web application for tracking and displaying the latest Major League Soccer (MLS) standings, built with Python, Streamlit, and Prefect.
 
+Data sourced from the [American Soccer Analysis API](https://app.americansocceranalysis.com/api/")
+
 ## Features
 
 - Real-time MLS standings updates
@@ -63,13 +65,8 @@ mls-standings-tracker/
 
 Contributions are welcome! Please open an issue or submit a pull request.
 
-## License
-
-Distributed under the [MIT License](LICENSE).
-
 ## Acknowledgements
 
 - [MLS Official Website](https://www.mlssoccer.com/)
 - [Streamlit](https://streamlit.io/)
 - [Prefect](https://www.prefect.io/)
-- Other open-source libraries and APIs
