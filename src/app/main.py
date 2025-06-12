@@ -33,28 +33,44 @@ data_load_state.text("")
 
 st.subheader("Current Standings")
 
-st.selectbox(
+# st.selectbox(
+#     "Select a team to view its details:",
+#     options=data["team_name"].unique(),
+#     key="team_selection",
+# )
+st.multiselect(
     "Select a team to view its details:",
-    options=data["team_name"].unique(),
+    options=sorted(data["team_name"].unique()),
     key="team_selection",
 )
 
-st.multiselect(
+st.selectbox(
     "Select a season to view its details:",
     options=sorted(data["season_name"].unique(), reverse=True),
     key="season_selection",
 )
 
+# st.multiselect(
+#     "Select a season to view its details:",
+#     options=sorted(data["season_name"].unique(), reverse=True),
+#     key="season_selection",
+# )
+
 
 st.line_chart(
+    # data[
+    #     (data["team_name"] == st.session_state.get("team_selection"))
+    #     & (data["season_name"].isin(st.session_state.get("season_selection", [])))
+    # ],
     data[
-        (data["team_name"] == st.session_state.get("team_selection"))
-        & (data["season_name"].isin(st.session_state.get("season_selection", [])))
+        (data["team_name"].isin(st.session_state.get("team_selection", [])))
+        & (data["season_name"] == st.session_state.get("season_selection"))
     ],
     use_container_width=True,
     height=500,
     x="game_number",
     y="cumulative_points",
-    color="season_name",
+    # color="season_name",
+    color="team_name",
     width=800,
 )

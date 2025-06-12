@@ -1,46 +1,8 @@
-import json
-
-import duckdb
-from httpx import Client
 from pandas import DataFrame
 from prefect import flow, task
 
-from schemas import Game, Team
-
-DATA_DIR = "data"
-DB_URI = "db/mls.db"
-MLS_API_URL = "https://app.americansocceranalysis.com/api/"
-
-# POINTS
-WIN = 3
-DRAW = 1
-LOSE = 0
-
-
-def get_db():
-    return duckdb.connect(DB_URI, read_only=False)
-
-
-def get_client():
-    return Client(base_url=MLS_API_URL, timeout=10.0)
-
-
-def get_team_data(client: Client, params: dict | None = None) -> list[dict]:
-    if params is None:
-        params = {}
-    response = client.get("v1/mls/teams", params=params)
-    response.raise_for_status()
-    teams_data = response.json()
-    return [Team(**team).model_dump() for team in teams_data]
-
-
-def get_game_data(client: Client, params: dict | None = None) -> list[dict]:
-    if params is None:
-        params = {}
-    response = client.get("v1/mls/games", params=params)
-    response.raise_for_status()
-    games_data = response.json()
-    return [Game(**game).model_dump() for game in games_data]
+from constants import DRAW, LOSE, WIN
+from utils import get_client, get_db, get_game_data, get_team_data
 
 
 @task
@@ -68,7 +30,6 @@ def transform(data):
     teams_df = DataFrame(data["teams"])
     games_df = DataFrame(data["games"])
 
-    # NOTE: filter out games that are not full-time
     merged_df = games_df.merge(
         teams_df,
         left_on="home_team_id",
@@ -80,6 +41,7 @@ def transform(data):
         right_on="id",
         suffixes=("", "_away"),
     )
+    # NOTE: filter out games that are not full-time
     merged_df = merged_df[merged_df["status"] == "FullTime"]
     merged_df["home_team_points"] = merged_df.apply(
         lambda row: WIN
@@ -140,8 +102,3 @@ def etl_flow():
     data = extract()
     transformed_df = transform(data)
     load(transformed_df)
-
-
-if __name__ == "__main__":
-    etl_flow()
-    print("ETL process completed successfully.")

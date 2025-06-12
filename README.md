@@ -29,13 +29,13 @@ pip install -r requirements.txt
 ### Extracting Data
 
 ```bash
-python src/etl.py
+python src/etl/main.py
 ```
 
 ### Running the App
 
 ```bash
-streamlit run src/app.py
+streamlit run src/app/main.py
 ```
 
 ### Running Prefect Flows
@@ -47,9 +47,14 @@ Refer to the Prefect documentation or the project’s instructions for running a
 ```
 mls-standings-tracker/
 ├── src/
-│   ├── schemas.py       # Pydantic Models
-│   ├── etl.py           # ETL from MLS API
-│   └── app.py           # Streamlit app entry point
+|   |── app/
+|   |   |── main.py
+|   |── etl/
+|   |   |── main.py
+|   |   |── schemas.py
+|   |   |── constants.py
+|   |   |── utils.py
+|   |   |── main.py
 ├── requirements.txt
 └── README.md
 ```

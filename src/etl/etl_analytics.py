@@ -1,23 +1,13 @@
-import duckdb
 from prefect import flow
 
-DATA_DIR = "data"
-DB_URI = "db/mls.db"
-MLS_API_URL = "https://app.americansocceranalysis.com/api/"
-
-# POINTS
-WIN = 3
-DRAW = 1
-LOSE = 0
-
-
-def get_db():
-    return duckdb.connect(DB_URI, read_only=False)
+from utils import get_db
 
 
 @flow(name="ETL Analytics Flow", description="Create analytics tables for MLS standings")
 def create_analytics_tables():
     db = get_db()
+    db.execute("DROP TABLE IF EXISTS team_points")
+    db.execute("DROP TABLE IF EXISTS cumulative_points")
     create_team_points_query = """create table if not exists team_points as  
     select
         season_name
@@ -67,8 +57,3 @@ def create_analytics_tables():
     order by team_name, season_name, game_number"""
     db.execute(create_cumulative_points_query)
     db.commit()
-
-
-if __name__ == "__main__":
-    create_analytics_tables()
-    print("Analytics Tables Created.")
