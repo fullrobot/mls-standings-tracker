@@ -1,27 +1,33 @@
+from constants import DRAW, LOSE, WIN
 from pandas import DataFrame
 from prefect import flow, task
-
-from constants import DRAW, LOSE, WIN
-from utils import get_client, get_db, get_game_data, get_team_data
+from utils import get_client, get_game_data, get_team_data
 
 
 @task
-def extract():
+def extract(year: str) -> dict:
     client = get_client()
     teams = get_team_data(client)
 
-    games = []
+    # games = []
 
-    for year in range(2010, 2026):
-        games.extend(
-            get_game_data(
-                client,
-                params={
-                    "season": str(year),
-                    "stage_name": "Regular Season",
-                },
-            )
-        )
+    # for year in range(2010, 2026):
+    #     games.extend(
+    #         get_game_data(
+    #             client,
+    #             params={
+    #                 "season": str(year),
+    #                 "stage_name": "Regular Season",
+    #             },
+    #         )
+    #     )
+    games = get_game_data(
+        client,
+        params={
+            "season": year,
+            "stage_name": "Regular Season",
+        },
+    )
     return {"teams": teams, "games": games}
 
 
@@ -88,17 +94,39 @@ def transform(data):
 
 @task
 def load(df: DataFrame) -> bool:
-    db = get_db()
-    db.sql("DROP TABLE IF EXISTS stg_games")
-    db.sql("CREATE TABLE stg_games AS SELECT * FROM df")
-    db.commit()
-    print("Data loaded into the database.")
-    db.close()
-    return True
+    df.to_parquet(
+        "data/games",
+        index=False,
+        compression="snappy",
+        partition_cols=["season_name", "matchday"],
+    )
+    print("Data loaded into the parquet file.")
 
 
 @flow(name="ETL Raw Data Flow")
-def etl_flow():
-    data = extract()
+def etl_flow(year: str) -> None:
+    """
+    Main ETL flow for processing raw MLS data.
+    Args:
+        year (str): The year for which to process the data. Default is "2023".
+    """
+    client = get_client()
+    teams = get_team_data(client)
+    print(f"Starting ETL flow for year: {year}")
+    games = get_game_data(
+        client,
+        params={
+            "season": year,
+            "stage_name": "Regular Season",
+        },
+    )
+    data = {"teams": teams, "games": games}
+    print(f"Extracted data for year: {year}")
+    print(f"Number of teams: {len(teams)}")
+    print(f"Number of games: {len(games)}")
+    print("Transforming data...")
     transformed_df = transform(data)
+    print("Data transformed successfully.")
+    print("Loading data into parquet file...")
     load(transformed_df)
+    print("ETL flow completed for year:", year)

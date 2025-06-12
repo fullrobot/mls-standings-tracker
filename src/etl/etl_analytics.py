@@ -8,6 +8,9 @@ def create_analytics_tables():
     db = get_db()
     db.execute("DROP TABLE IF EXISTS team_points")
     db.execute("DROP TABLE IF EXISTS cumulative_points")
+    db.execute("DROP TABLE IF EXISTS stg_games")
+    db.execute("CREATE TABLE IF NOT EXISTS stg_games AS SELECT * FROM 'data/games/**/*.parquet'")
+
     create_team_points_query = """create table if not exists team_points as  
     select
         season_name
